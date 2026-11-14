@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>精神状态测试</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 40px 16px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      padding: 40px 32px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+    }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .intro .icon { font-size: 48px; }
+    .intro h1 { font-size: 26px; margin: 12px 0; }
+    .intro p { color: #666; line-height: 1.6; }
+    .stats { display: flex; justify-content: center; gap: 12px; margin: 24px 0; flex-wrap: wrap; }
+    .stat { background: #f5f8ff; border-radius: 10px; padding: 10px 14px; font-size: 14px; color: #4a6fa5; }
+    button {
+      padding: 12px 32px;
+      border: none;
+      border-radius: 10px;
+      background: #4a90d9;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button:hover { background: #3a7bc0; }
+    button:disabled { background: #c5d5e5; cursor: not-allowed; }
+    button.ghost { background: #eef2f8; color: #555; }
+    button.ghost:hover { background: #dde5f0; }
+    .tip { color: #aaa; font-size: 12px; margin-top: 20px; }
+    .progress { height: 8px; background: #e8ecf3; border-radius: 4px; margin-bottom: 24px; overflow: hidden; }
+    .progress .bar { height: 100%; width: 0; background: #4a90d9; border-radius: 4px; transition: width 0.3s; }
+    .count { color: #999; font-size: 13px; margin-bottom: 12px; }
+    .q-text { font-size: 18px; font-weight: bold; margin-bottom: 20px; line-height: 1.5; }
+    .opts { text-align: left; }
+    .opt {
+      display: block;
+      border: 2px solid #e3e9f2;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin: 10px 0;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 15px;
+    }
+    .opt:hover { border-color: #4a90d9; background: #f2f8ff; }
+    .opt.selected { border-color: #4a90d9; background: #eef6ff; }
+    .nav { display: flex; gap: 12px; justify-content: center; }
+    .nav button { margin-top: 20px; }
+    .result .emoji { font-size: 56px; }
+    .result h2 { margin: 12px 0 8px; font-size: 22px; }
+    .result .score { color: #4a90d9; font-weight: bold; margin-bottom: 12px; }
+    .result p { color: #666; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="card">
+
+    <!-- 开始页 -->
+    <section id="screen-intro" class="screen intro active">
+      <div class="icon">🧠</div>
+      <h1>精神状态测试</h1>
+      <p>你的精神状态，还在线吗？<br>15 道题，1 分钟，测出此刻最真实的你。</p>
+      <div class="stats">
+        <span class="stat">📋 15 道题</span>
+        <span class="stat">⏱ 约 1 分钟</span>
+        <span class="stat">🎯 4 种结果</span>
+      </div>
+      <button id="btn-start">开始测试 →</button>
+      <p class="tip">本测试纯属娱乐，不构成任何专业心理评估</p>
+    </section>
+
+    <!-- 答题页 -->
+    <section id="screen-quiz" class="screen">
+      <div class="progress"><div class="bar" id="bar"></div></div>
+      <div class="count" id="count"></div>
+      <div class="q-text" id="q-text"></div>
+      <div class="opts" id="opts"></div>
+      <div class="nav">
+        <button id="btn-prev" class="ghost">← 上一题</button>
+      </div>
+    </section>
+
+    <!-- 结果页 -->
+    <section id="screen-result" class="screen result">
+      <div class="emoji" id="r-emoji"></div>
+      <h2 id="r-title"></h2>
+      <div class="score" id="r-score"></div>
+      <p id="r-desc"></p>
+      <div class="nav"><button id="btn-retry" class="ghost">↻ 重新测一次</button></div>
+      <p class="tip">本测试纯属娱乐，不构成任何专业心理评估</p>
+    </section>
+
+  </div>
+
+  <script>
+    const QUESTIONS = [
+      { q: "你最近的睡眠质量怎么样？",
+        opts: [["很好，一觉到天亮", 0], ["一般，偶尔失眠", 1], ["很差，经常睡不着", 2]] },
+      { q: "你最近感觉压力大吗？",
+        opts: [["没什么压力", 0], ["偶尔有些压力", 1], ["压力很大", 2]] },
+      { q: "你做事时能集中注意力吗？",
+        opts: [["完全没问题", 0], ["容易走神", 1], ["根本无法集中", 2]] },
+      { q: "你最近会经常情绪低落吗？",
+        opts: [["不会", 0], ["偶尔会", 1], ["经常会", 2]] },
+      { q: "你对平时喜欢的事情还提得起兴趣吗？",
+        opts: [["兴趣十足", 0], ["兴趣减退了", 1], ["完全提不起兴趣", 2]] },
+      { q: "你最近的胃口怎么样？",
+        opts: [["正常，吃得香", 0], ["食欲一般", 1], ["没胃口或暴饮暴食", 2]] },
+      { q: "你经常感到疲惫乏力吗？",
+        opts: [["精力充沛", 0], ["偶尔觉得累", 1], ["怎么休息都累", 2]] },
+      { q: "你会莫名感到焦虑不安吗？",
+        opts: [["几乎不会", 0], ["偶尔会", 1], ["经常心慌不安", 2]] },
+      { q: "你最近容易发脾气、烦躁吗？",
+        opts: [["心态很平和", 0], ["偶尔烦躁", 1], ["一点就炸", 2]] },
+      { q: "你经常头痛或浑身不舒服吗？",
+        opts: [["很少", 0], ["偶尔", 1], ["经常", 2]] },
+      { q: "你愿意和朋友、家人聊天见面吗？",
+        opts: [["愿意，乐在其中", 0], ["懒得动，但聊了也开心", 1], ["只想躲开所有人", 2]] },
+      { q: "你对未来还抱有期待吗？",
+        opts: [["有很多想做的事", 0], ["说不上来", 1], ["觉得没什么盼头", 2]] },
+      { q: "你会觉得自己没什么价值吗？",
+        opts: [["不会，感觉还不错", 0], ["偶尔自我怀疑", 1], ["经常觉得自己很失败", 2]] },
+      { q: "你的记性最近怎么样？",
+        opts: [["很好", 0], ["偶尔忘事", 1], ["转头就忘", 2]] },
+      { q: "你的作息规律吗？",
+        opts: [["规律，作息健康", 0], ["偶尔熬夜", 1], ["经常昼夜颠倒", 2]] }
+    ];
+
+    const RESULTS = [
+      { max: 7,  emoji: "😎", title: "精神状态：满血在线",
+        desc: "你现在的状态相当不错！睡眠、情绪、精力都在线，继续保持规律的生活节奏，好状态就是你的超能力。" },
+      { max: 15, emoji: "🙂", title: "精神状态：基本在线",
+        desc: "整体还行，但身体已经开始发出轻微信号了。适当放松、早点睡觉，别让小疲惫攒成大问题。" },
+      { max: 22, emoji: "😪", title: "精神状态：信号不稳",
+        desc: "你大概已经硬撑了一段时间。把节奏放慢一点，给自己留点发呆和休息的时间，必要时向身边的人倾诉一下。" },
+      { max: 30, emoji: "🫠", title: "精神状态：即将离线",
+        desc: "你的身心都在超负荷运行了。请认真休息，主动求助不是软弱；如果低落状态持续两周以上，建议寻求专业心理帮助。" }
+    ];
+
+    let current = 0;
+    const answers = new Array(QUESTIONS.length).fill(null);
+
+    const $ = id => document.getElementById(id);
+    const screens = { intro: $("screen-intro"), quiz: $("screen-quiz"), result: $("screen-result") };
+
+    function show(name) {
+      Object.values(screens).forEach(el => el.classList.remove("active"));
+      screens[name].classList.add("active");
+    }
+
+    function render() {
+      const item = QUESTIONS[current];
+      $("count").textContent = "第 " + (current + 1) + " / " + QUESTIONS.length + " 题";
+      $("q-text").textContent = item.q;
+      const optsEl = $("opts");
+      optsEl.innerHTML = "";
+      item.opts.forEach(([text, value]) => {
+        const label = document.createElement("div");
+        label.className = "opt" + (answers[current] === value ? " selected" : "");
+        label.textContent = text;
+        label.addEventListener("click", () => choose(value));
+        optsEl.appendChild(label);
+      });
+      $("bar").style.width = (answers.filter(a => a !== null).length / QUESTIONS.length * 100) + "%";
+      $("btn-prev").disabled = current === 0;
+    }
+
+    function choose(value) {
+      answers[current] = value;
+      if (current < QUESTIONS.length - 1) {
+        current++;
+        render();
+      } else if (answers.every(a => a !== null)) {
+        showResult();
+      } else {
+        render();
+      }
+    }
+
+    function showResult() {
+      const score = answers.reduce((sum, v) => sum + v, 0);
+      const r = RESULTS.find(r => score <= r.max);
+      $("r-emoji").textContent = r.emoji;
+      $("r-title").textContent = r.title;
+      $("r-score").textContent = "得分：" + score + " / " + (QUESTIONS.length * 2);
+      $("r-desc").textContent = r.desc;
+      show("result");
+    }
+
+    $("btn-start").addEventListener("click", () => {
+      current = 0;
+      answers.fill(null);
+      render();
+      show("quiz");
+    });
+
+    $("btn-prev").addEventListener("click", () => {
+      if (current > 0) { current--; render(); }
+    });
+
+    $("btn-retry").addEventListener("click", () => show("intro"));
+  </script>
+</body>
+</html>
